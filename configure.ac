@@ -79,6 +79,8 @@ AC_SUBST(SRD_LIB_LDFLAGS)
 
 # Checks for libraries.
 
+LIBS="-lm"
+
 # libglib-2.0 is always needed.
 # Note: glib-2.0 is part of the libsigrokdecode API
 # (hard pkg-config requirement).
@@ -86,36 +88,9 @@ AM_PATH_GLIB_2_0([2.24.0],
         [CFLAGS="$CFLAGS $GLIB_CFLAGS"; LIBS="$LIBS $GLIB_LIBS"])
 
 # Python support. We require at least Python >= 3.0.
-AC_ARG_VAR([PYTHON3_CONFIG], [path to python3-config utility])
-AC_CHECK_PROGS([PYTHON3_CONFIG], [python3-config python3.3-config python-config-3.3 python3.2-config python-config-3.2 python3.1-config python-config-3.1 python3.0-config python-config-3.0])
-CPPFLAGS_PYTHON=""
-LDFLAGS_PYTHON=""
-case "$build" in
-*mingw*)
-	# We currently hardcode the paths to the Python 3.2 default install
-	# location as there's no 'python-config' script on Windows, it seems.
-	# Note: We add both the /c/ and c:/ syntax (needed for cmake).
-	AC_MSG_WARN([using hardcoded Python3 configuration on MinGW])
-	CPPFLAGS_PYTHON="-I/c/Python32/include -Ic:/Python32/include"
-	LDFLAGS_PYTHON="-L/c/Python32/libs -Lc:/Python32/libs -lpython32"
-	;;
-*)
-	# We know that Linux has 'python3-config'.
-	# On Darwin, Macports has python3.x-config, fink has python3-config.
-	# Mac OS X (Snow Leopard) ships with 'python-config' per default, but
-	# that's Python 2.x, so not useful for us.
-	# Everything else is untested, we just hope some $PYTHON3_CONFIG
-	# (i.e., any of the tools we check for above) is available.
-	if test -n "$PYTHON3_CONFIG"; then
-		CPPFLAGS_PYTHON="$($PYTHON3_CONFIG --includes)"
-		LDFLAGS_PYTHON="$($PYTHON3_CONFIG --ldflags)"
-	else
-		AC_MSG_ERROR([python3-config not found])
-	fi
-	;;
-esac
-AC_SUBST(CPPFLAGS_PYTHON)
-AC_SUBST(LDFLAGS_PYTHON)
+PKG_CHECK_MODULES([python3], [python3 >= 3.0.0],
+	[CFLAGS="$CFLAGS $python3_CFLAGS"; LIBS="$LIBS $python3_LIBS"],
+	[AC_MSG_ERROR([python3 not found])])
 
 # The Check unit testing framework is optional. Disable if not found.
 PKG_CHECK_MODULES([check], [check >= 0.9.4],
@@ -178,7 +153,7 @@ echo "Detected libraries:"
 echo
 
 # Note: This only works for libs with pkg-config integration.
-for lib in "glib-2.0 >= 2.24.0" "check >= 0.9.4"; do
+for lib in "glib-2.0 >= 2.24.0" "check >= 0.9.4" "python3 >= 3.0.0"; do
         if `$PKG_CONFIG --exists $lib`; then
                 ver=`$PKG_CONFIG --modversion $lib`
                 answer="yes ($ver)"
@@ -189,9 +164,3 @@ for lib in "glib-2.0 >= 2.24.0" "check >= 0.9.4"; do
 done
 
 echo
-echo "Detected Python:"
-echo
-echo "  - Python CPPFLAGS: $CPPFLAGS_PYTHON"
-echo "  - Python LDFLAGS: $LDFLAGS_PYTHON"
-echo
-
